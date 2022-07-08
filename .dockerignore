@@ -1,0 +1,6 @@
+.DS_Store
+src/node_modules/
+couchdb-data/
+*.md
+.github
+.git

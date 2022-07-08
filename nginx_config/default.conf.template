@@ -1,0 +1,72 @@
+# Nginx configuration
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay  on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    include       mime.types;
+    default_type  application/octet-stream;
+    gzip on;
+    gzip_comp_level 2;
+    gzip_min_length 512;
+
+    # don't send the nginx version number in error pages and Server header
+    server_tokens off;
+
+    resolver 1.1.1.1 1.0.0.1 valid=300s;
+    resolver_timeout 5s;
+
+    # Server leaks inodes via diable ETags
+    etag off;
+
+    log_format l2met '$remote_addr - $remote_user [$time_local] '
+      '"$request" $status $body_bytes_sent '
+      '"$http_referer" "$http_user_agent" '
+      'responseTime=$request_time '
+      'http_host=$host '
+      'totalSize=$bytes_sent '
+      'CFClientIP=$http_cf_connecting_ip '
+      'SslProtocol=$ssl_protocol '
+      'SslCipher=$ssl_cipher '
+      'SSL_TLS_SNI=$ssl_server_name '
+      'proxy_host=$proxy_host '
+      'upstream_addr=$upstream_addr '
+      'upstream_connect_time=$upstream_connect_time '
+      'upstream_header_time=$upstream_header_time '
+      'upstream_response_length=$upstream_response_length '
+      'upstream_status=$upstream_status '
+      'upstream_response_time=$upstream_response_time';
+    access_log '/var/log/nginx/access.log' l2met;
+    error_log '/var/log/nginx/error.log' notice;
+
+    # Must read the body in 5 seconds.
+    client_body_timeout 5;
+
+    server {
+	    listen ${NGINX_PORT} default_server;
+	    listen [::]:${NGINX_PORT} default_server;
+        server_name ${NGINX_HOST};
+        keepalive_timeout 5;
+        client_max_body_size 1M;
+        location / {
+            # X-Frame-Options is to prevent from clickJacking attack
+            add_header X-Frame-Options SAMEORIGIN;
+            #  disable content-type sniffing on some browsers.
+            add_header X-Content-Type-Options nosniff;
+            # This header enables the Cross-site scripting (XSS) filter
+            add_header X-XSS-Protection "1; mode=block";
+            # This will enforce HTTP browsing into HTTPS and avoid ssl stripping attack
+            add_header Strict-Transport-Security "max-age=31536000; includeSubdomains" always;
+            add_header 'Referrer-Policy' 'same-origin';
+            add_header 'Cache-Control' "max-age=0";
+            #add_header 'Access-Control-Allow-Credentials' "true";
+
+            #add_header 'Access-Control-Allow-Methods' "GET,OPTIONS,POST";
+            #add_header 'Access-Control-Allow-Headers' "Accept, Authorization, Content-Type, User-Agent, X-Forwarded-For";
+
+            try_files $uri /index.html;
+        }
+    }
+}
